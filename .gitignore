@@ -1,0 +1,6 @@
+tools/voxelizer/build/
+__pycache__/
+*.pyc
+assets/
+*.blend1
+.DS_Store
