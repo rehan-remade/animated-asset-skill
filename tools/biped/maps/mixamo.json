@@ -1,0 +1,6 @@
+{"_source": "Mixamo FBX (download with skin or 'without skin' on any Mixamo character; import the FBX)",
+ "hips":"mixamorig:Hips","spine":"mixamorig:Spine","chest":"mixamorig:Spine2","head":"mixamorig:Head",
+ "armL.upper":"mixamorig:LeftArm","armL.lower":"mixamorig:LeftForeArm","handL":"mixamorig:LeftHand","handslotL":null,
+ "armR.upper":"mixamorig:RightArm","armR.lower":"mixamorig:RightForeArm","handR":"mixamorig:RightHand","handslotR":null,
+ "legL.upper":"mixamorig:LeftUpLeg","legL.lower":"mixamorig:LeftLeg","footL":"mixamorig:LeftFoot",
+ "legR.upper":"mixamorig:RightUpLeg","legR.lower":"mixamorig:RightLeg","footR":"mixamorig:RightFoot"}

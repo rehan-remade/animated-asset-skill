@@ -1,0 +1,6 @@
+{"_source": "Quaternius Universal Animation Library (Rigify DEF- bones)",
+ "hips":"DEF-hips","spine":"DEF-spine.001","chest":"DEF-spine.003","head":"DEF-head",
+ "armL.upper":"DEF-upper_arm.L","armL.lower":"DEF-forearm.L","handL":"DEF-hand.L","handslotL":null,
+ "armR.upper":"DEF-upper_arm.R","armR.lower":"DEF-forearm.R","handR":"DEF-hand.R","handslotR":null,
+ "legL.upper":"DEF-thigh.L","legL.lower":"DEF-shin.L","footL":"DEF-foot.L",
+ "legR.upper":"DEF-thigh.R","legR.lower":"DEF-shin.R","footR":"DEF-foot.R"}

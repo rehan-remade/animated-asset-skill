@@ -1,0 +1,6 @@
+{"_source": "KayKit Adventurers rig (anims/kaykit/Knight.glb)",
+ "hips":"hips","spine":"spine","chest":"chest","head":"head",
+ "armL.upper":"upperarm.l","armL.lower":"lowerarm.l","handL":"hand.l","handslotL":"handslot.l",
+ "armR.upper":"upperarm.r","armR.lower":"lowerarm.r","handR":"hand.r","handslotR":"handslot.r",
+ "legL.upper":"upperleg.l","legL.lower":"lowerleg.l","footL":"foot.l",
+ "legR.upper":"upperleg.r","legR.lower":"lowerleg.r","footR":"foot.r"}
