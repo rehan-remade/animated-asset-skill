@@ -5,6 +5,7 @@
   run_character.py <Name> --glb mesh.glb --height-m 1.8        # skip the fal mesh step
   run_character.py <Name> --vox model.vox --height-m 1.8       # skip straight to the rig (a standing, -Y facing humanoid .vox)
   options: --source anims/kaykit/Knight.glb --map maps/kaykit.json --preset presets/rpg_kaykit.json --only Idle,Slash --no-props
+           --relax-arms 15   (degrees; pulls hanging upper arms toward the body — for chunky sleeves that read as raised arms)
 
 Outputs (under <out>/<Name>/): <Name>_mesh.glb, <Name>.vox, previews/, layout.json, <name>_rules.py, <Name>_rigged.blend,
 <Name>_animated.glb (every clip + prop meshes on the weapon slot), clips.json (loop / hit frame / prop), report.json, run.log.
@@ -79,6 +80,7 @@ def main():
            "--layout", os.path.join(D, "layout.json"), "--rules", rules, "--name", name, "--source", source, "--map", bmap, "--preset", preset]
     if opt("--only"): cmd += ["--only", opt("--only")]
     if "--no-props" in a: cmd += ["--no-props"]
+    if opt("--relax-arms"): cmd += ["--relax-arms", opt("--relax-arms")]
     if "--render" in a: cmd += ["--render"]
     r, dt = sh(cmd, log); out = r.stdout + r.stderr
     clips = [l for l in out.splitlines() if l.startswith("CLIP ")]

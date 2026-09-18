@@ -67,8 +67,13 @@ python tools/pipeline/run_character.py <Name> --image-url <picked url> --height-
   KayKit rig, adds `handslotL/R` from the source's own slot offsets, re-rolls every mapped bone into the
   source's frame convention and copies the source's world rotation per frame (see
   [references/retargeting.md](references/retargeting.md)). Hips translation is scaled by leg height;
-  feet are clamped to the floor through the hips. Props are small voxel meshes bone-parented to
-  `handslotR` (grip at the slot origin, length along the slot's +y).
+  feet are clamped to the floor through the hips. Props are voxel meshes from `tools/biped/props/*.py`
+  (sword, axe, pickaxe, staff; grip at the slot origin, length along the slot's +y, one cell = height/27),
+  bone-parented to `handslotR`. `Chop` carries an additive forward bend (preset `add`) so the axe lands on
+  a log at the ground while `Mine` swings at a rock face at chest height.
+- **Chunky sleeves** that read as raised arms in Idle (the KayKit idle holds the upper arms ~45° out):
+  pass `--relax-arms 20..30` to pull hanging upper arms toward the body; the pull fades out as an arm is
+  raised, so attacks are untouched. Check `previews/Idle_0.png` and decide.
 
 **QA gate (numeric, never visual):** every `CLIP` line in `run.log` must end in `OK`:
 `dir 0.000 deg` (the target bone points exactly where the source bone points, an identity check on

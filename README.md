@@ -43,6 +43,8 @@ python tools/pipeline/run_character.py Dwarf --image-url <picked url> --height-m
 
 Output: `Dwarf_animated.glb` with 33 named animations, `handslotL/R` bones, and `Prop_sword/axe/pickaxe/staff` voxel meshes parented to the right slot; `clips.json` says which prop and hit frame belong to each clip. Already have a character? `--glb model.glb` or `--vox model.vox`. Mixamo FBX files work as a source through `--source file.fbx --map tools/biped/maps/mixamo.json` (they may not be redistributed, so none are included); the Quaternius library maps through `maps/ual.json`.
 
+Props are voxel weapons in `tools/biped/props/` (drop in your own `.py` cell module); `--relax-arms 25` tames chunky sleeves that read as raised arms in idle.
+
 Clips: Idle · Walk · Run · JumpStart · JumpLoop · JumpLand · SwordIdle · Slash · SlashDiag · Stab · Overhead · Chop · Mine · Slice2H · Spin · Block · BlockHit · CastRaise · Cast · CastLong · Casting · Punch · Kick · Interact · PickUp · UseItem · Throw · Hit · Death · Cheer · DodgeBack · SitDown · SitIdle. Add one with a line in `tools/biped/presets/rpg_kaykit.json`.
 
 ## animated-asset: quadruped clips

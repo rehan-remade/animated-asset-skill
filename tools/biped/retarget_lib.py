@@ -95,8 +95,9 @@ def prepare_target(tgt, src, bone_map):
 
 
 class Retargeter:
-    def __init__(self, tgt, src, bone_map, hips="hips"):
+    def __init__(self, tgt, src, bone_map, hips="hips", relax_arms_deg=0.0):
         self.tgt, self.src, self.map = tgt, src, bone_map
+        self.relax = math.radians(relax_arms_deg)                  # pull hanging upper arms toward the body (chunky sleeves)
         self.src_rest = {b.name: (src.matrix_world @ b.matrix_local) for b in src.data.bones}
         self.tgt_rest = {b.name: (tgt.matrix_world @ b.matrix_local) for b in tgt.data.bones}
         self.order = []
@@ -112,7 +113,10 @@ class Retargeter:
         self.scene = bpy.context.scene
         self.H = max((o.dimensions.z for o in bpy.data.objects if o.type == "MESH" and o.find_armature() == tgt), default=1.8)
 
-    def bake(self, src_act, name, loop=False, hit=None):
+    def bake(self, src_act, name, loop=False, hit=None, add=None):
+        """add = {"pitch_deg": {"spine": 25, "chest": 15}, "window": [0.15, 0.85]} bends those bones forward
+        (about the world lateral axis) with a smooth envelope over that fraction of the clip — e.g. a chop
+        aimed at a log on the ground instead of a rock at chest height."""
         src_ad = self.src.animation_data or self.src.animation_data_create()
         src_ad.action = src_act
         if src_act.slots: src_ad.action_slot = src_act.slots[0]
@@ -123,8 +127,14 @@ class Retargeter:
         nan = 0; maxdir = 0.0; minfoot = 9.0; hips_ex = 0.0; floor_fix = 0.0
         first_pose = None; last_pose = None; slot_track = []
         tgt, src, tr, sr = self.tgt, self.src, self.tgt_rest, self.src_rest
+        pitch = (add or {}).get("pitch_deg", {}); w0, w1 = (add or {}).get("window", [0.0, 1.0])
+        def envelope(f):
+            u = (f - f0) / max(f1 - f0, 1)
+            if u <= w0 or u >= w1: return 0.0
+            t = (u - w0) / (w1 - w0); return math.sin(math.pi * t) ** 2          # smooth in / out, peak mid-window
         for f in range(f0, f1 + 1):
             self.scene.frame_set(f)
+            env = envelope(f) if pitch else 0.0
             Ws = {sb: src.matrix_world @ src.pose.bones[sb].matrix for sb in self.map.values()}
             Wt = {}; pose = {}
             for tb in self.order:
@@ -133,6 +143,14 @@ class Retargeter:
                 base = (Wt[par] @ rel) if par else rel
                 if tb in self.map:
                     sb = self.map[tb]; Rw = Ws[sb].to_3x3()
+                    if env and tb in pitch:                          # forward bend about the world lateral axis
+                        Rw = Matrix.Rotation(math.radians(pitch[tb]) * env, 3, "X") @ Rw
+                    if self.relax and tb.lower().startswith("arm") and "upper" in tb.lower():
+                        d = (Rw @ Vector((0, 1, 0))).normalized()    # only while the arm hangs (not raised / forward)
+                        k = max(0.0, -d.z) ** 2
+                        if k > 0:                                    # right arm sits at -x: rotate about world Y toward the body
+                            side = -1.0 if d.x < 0 else 1.0
+                            Rw = Matrix.Rotation(-side * self.relax * k, 3, "Y") @ Rw
                     W = Rw.to_4x4(); W.translation = base.translation
                     if tb == self.hips:
                         W.translation = Rt.translation + (Ws[sb].translation - sr[sb].translation) * self.hscale
@@ -144,7 +162,7 @@ class Retargeter:
                     if tb == self.hips:
                         pb.location = basis.translation; pb.keyframe_insert("location", frame=f)
                         hips_ex = max(hips_ex, (W.translation - Rt.translation).length)
-                    dy_t = (W.to_3x3() @ Vector((0, 1, 0))).normalized(); dy_s = (Rw @ Vector((0, 1, 0))).normalized()
+                    dy_t = (W.to_3x3() @ Vector((0, 1, 0))).normalized(); dy_s = (Rw @ Vector((0, 1, 0))).normalized()   # Rw includes any additive bend
                     maxdir = max(maxdir, math.degrees(dy_t.angle(dy_s, 0.0)))
                 else:
                     Wt[tb] = base
@@ -176,36 +194,30 @@ class Retargeter:
         return info
 
     def add_prop_box(self, side="R", kind="sword"):
-        """A small voxel prop in the weapon slot, sized from the character. Frame: grip at the slot origin,
-        length along slot +y, blade edge / axe head along x, thickness along z."""
+        """A voxel prop in the weapon slot, from tools/biped/props/<kind>.py (grip at the slot origin, length along
+        the slot's +y, head/edge along x), scaled to the character: one prop cell = height / 27."""
         slot = self.slots.get(side)
         if not slot: return None
-        H = self.H; c = H / 36.0                                   # prop voxel = 1/36 of the height (5 cm at 1.8 m)
-        wood, steel, gold, gem, dark = (0.36, 0.22, 0.10, 1), (0.72, 0.74, 0.78, 1), (0.85, 0.65, 0.20, 1), (0.25, 0.55, 1.0, 1), (0.15, 0.15, 0.17, 1)
-        cells = {}                                                  # (x, y, z) -> colour, y = along the length
-        def box(x0, x1, y0, y1, z0, z1, col):
-            for x in range(x0, x1):
-                for y in range(y0, y1):
-                    for z in range(z0, z1): cells[(x, y, z)] = col
-        if kind == "sword":
-            box(0, 1, -3, 0, 0, 1, dark); box(-2, 3, 0, 1, 0, 1, gold); box(0, 1, 1, 15, 0, 1, steel); box(0, 1, 15, 16, 0, 1, steel); grip = -3
-        elif kind == "axe":
-            box(0, 1, -3, 12, 0, 1, wood); box(-3, 1, 9, 13, 0, 1, steel); box(-4, -3, 10, 12, 0, 1, steel); grip = -3
-        elif kind == "pickaxe":
-            box(0, 1, -3, 12, 0, 1, wood); box(-4, 5, 11, 13, 0, 1, steel); box(-5, -4, 11, 12, 0, 1, steel); box(5, 6, 11, 12, 0, 1, steel); grip = -3
-        else:                                                       # staff: held at the middle, orb on top
-            box(0, 1, -12, 14, 0, 1, wood); box(-1, 2, 14, 17, -1, 2, gem); grip = -12
+        import importlib.util, os
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "props", kind + ".py")
+        if os.path.exists(path):
+            sp = importlib.util.spec_from_file_location("prop_" + kind, path); m = importlib.util.module_from_spec(sp); sp.loader.exec_module(m)
+            cells = {k: tuple(v) for k, v in m.CELLS.items()}; anchor = Vector(getattr(m, "ANCHOR", (0, 0, 0)))
+        else:                                                       # fallback: a plain box
+            cells = {(x, y, 0): (190, 195, 205) for x in range(-1, 1) for y in range(-3, 16)}; anchor = Vector((0, 0, 0))
+        c = self.H / 27.0
         FACE = [((1, 0, 0), [(1, 0, 0), (1, 1, 0), (1, 1, 1), (1, 0, 1)]), ((-1, 0, 0), [(0, 1, 0), (0, 0, 0), (0, 0, 1), (0, 1, 1)]),
                 ((0, 1, 0), [(1, 1, 0), (0, 1, 0), (0, 1, 1), (1, 1, 1)]), ((0, -1, 0), [(0, 0, 0), (1, 0, 0), (1, 0, 1), (0, 0, 1)]),
                 ((0, 0, 1), [(0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)]), ((0, 0, -1), [(0, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 0)])]
+        lin = lambda v: (v / 255) / 12.92 if v / 255 <= 0.04045 else ((v / 255 + 0.055) / 1.055) ** 2.4
         verts, vmap, faces, cols = [], {}, [], []
         def vid(k):
-            if k not in vmap: vmap[k] = len(verts); verts.append(((k[0] - 0.5) * c, k[1] * c, (k[2] - 0.5) * c))
+            if k not in vmap: vmap[k] = len(verts); verts.append(tuple((Vector(k) - anchor) * c))
             return vmap[k]
         for (x, y, z), col in cells.items():
             for (dx, dy, dz), corners in FACE:
                 if (x + dx, y + dy, z + dz) in cells: continue
-                faces.append(tuple(vid((x + a, y + b, z + d)) for a, b, d in corners)); cols.append(col)
+                faces.append(tuple(vid((x + a, y + b, z + d)) for a, b, d in corners)); cols.append((lin(col[0]), lin(col[1]), lin(col[2]), 1))
         me = bpy.data.meshes.new(f"Prop_{kind}"); me.from_pydata(verts, [], faces); me.update()
         ca = me.color_attributes.new(name="Col", type="FLOAT_COLOR", domain="CORNER"); li = 0
         for poly, col in zip(me.polygons, cols):

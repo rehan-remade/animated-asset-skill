@@ -2,7 +2,7 @@
 
 blender -b --factory-startup --python biped_build.py -- <model.vox> <outdir> --layout layout.json --rules <name>_rules.py \
     --name Name --source anims/kaykit/Knight.glb --map maps/kaykit.json --preset presets/rpg_kaykit.json \
-    [--only Idle,Slash] [--no-props] [--render [--frames 6]] [--no-export]
+    [--only Idle,Slash] [--no-props] [--render [--frames 6]] [--no-export] [--relax-arms 15]
 
 Outputs: <Name>_rigged.blend, <Name>_animated.glb (every clip as a glTF animation + prop meshes on the weapon slot),
 clips.json (loop / hit frame / prop per clip), report.json (guards), previews/<Clip>_<i>.png when --render.
@@ -22,6 +22,7 @@ SOURCE, MAP, PRESET = arg("--source"), arg("--map"), arg("--preset")
 ONLY = set(arg("--only", "").split(",")) - {""}
 PROPS, RENDER, EXPORT = "--no-props" not in argv, "--render" in argv, "--no-export" not in argv
 FRAMES = int(arg("--frames", "6"))                       # preview frames per clip with --render
+RELAX = float(arg("--relax-arms", "0"))                  # degrees: pull hanging upper arms in toward the body
 os.makedirs(OUT, exist_ok=True)
 for _o in list(bpy.data.objects): bpy.data.objects.remove(_o, do_unlink=True)     # factory Cube/Light/Camera
 spec = importlib.util.spec_from_file_location("rules", arg("--rules")); rules = importlib.util.module_from_spec(spec); spec.loader.exec_module(rules)
@@ -102,12 +103,12 @@ if SOURCE:
     bone_map = json.load(open(MAP))
     if rt.facing_fix(src, bone_map): print("SOURCE FACING flipped 180 deg to face -Y")
     bone_map = rt.prepare_target(arm, src, bone_map)
-    R = rt.Retargeter(arm, src, bone_map)
+    R = rt.Retargeter(arm, src, bone_map, relax_arms_deg=RELAX)
     preset = {k: v for k, v in json.load(open(PRESET)).items() if not k.startswith("_")}
     for name, spec_c in preset.items():
         if ONLY and name not in ONLY: continue
         if spec_c["src"] not in src_acts: print("MISSING source clip", spec_c["src"], "for", name); continue
-        info = R.bake(src_acts[spec_c["src"]], name, loop=spec_c.get("loop", False), hit=spec_c.get("hit"))
+        info = R.bake(src_acts[spec_c["src"]], name, loop=spec_c.get("loop", False), hit=spec_c.get("hit"), add=spec_c.get("add"))
         info["prop"] = spec_c.get("prop"); report["clips"][name] = info
         clips_out[name] = {k: info[k] for k in ("frames", "fps", "loop", "hit_frame", "prop")}
     props = {}
